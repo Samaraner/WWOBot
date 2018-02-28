@@ -16,6 +16,7 @@ namespace Zählbot
         HtmlWeb web = new HtmlWeb();
         Dictionary<int, string> playerNames = new Dictionary<int, string>();
         List<Error> errorList = new List<Error>();
+        //new InternetExplorer
 
         public void Start()
         {
@@ -35,8 +36,55 @@ namespace Zählbot
         //TODO
         private void PostStand(Game game)
         {
+            string post = ConstructPost(game);
+
+        }
+
+        //TODO
+        private string ConstructPost(Game game)
+        {
+            string ret = string.Empty;
+
+            if (game.WithHD && game.CurrentDay().Day == 1)
+            {
+                ret = $@"[b]Stand HD-Wahl:[/b]{Environment.NewLine}";
+            }
+            else
+            {
+                ret = $@"[b]Stand Lynchung {game.CurrentDay().Day}:[/b]";
+            }
+            GetOnlyCurrentVotes(game.CurrentDay().Votes).Select(x => x.Voted).Distinct().ToList().ForEach(x => ret += SingleVoted(x));
+
+            return ret;
 
 
+            string SingleVoted(Player voted)
+            {
+                string retlocal = $@"[b]{voted.Name}[/b]:";
+                int votes = 0;
+                List<string> votees = new List<string>();
+
+                var votelist = game.CurrentDay().Votes.Where(x => x.Voted.PlayerId == voted.PlayerId).Distinct();
+                foreach (var vote in votelist)
+                {
+                    if (game.WithHD && game.CurrentDay().Day > 1 && vote.Voting.PlayerId == game.HD.PlayerId)
+                    {
+                        votees.Add($@"[b]{vote.Voting.Name}[/b]");
+                        votes += game.HDStimmen; 
+                    }
+                    else
+                    {
+                        votees.Add(vote.Voting.Name);
+                        votes++;
+                    }
+                }
+                return $@"[b]{voted.Name}[/b]: {votes.ToString()} ({String.Join(", ",votees)}){Environment.NewLine}";
+            }
+        }
+
+        List<Vote> GetOnlyCurrentVotes(List<Vote> votes)
+        {
+            return votes.Select(x => votes.Where(y => y.Voting == x.Voting).Last()).Distinct().ToList();
         }
 
         public List<int> ScanForGames()
@@ -59,7 +107,6 @@ namespace Zählbot
 
             Game ret = new Game() { ThreadId = id, SL = post.Author};
             GameDay gameday = new GameDay() {Day = 1};
-            //gameday.Posts.Add(post);
             gameday.LastPostNumber = post.PostNumber;
             gameday.Start = post.Time;
             gameday.End = GetLynchTime(post.Postcontent, post.Author, post.PostId, post.Time).AddDays(1);
@@ -68,24 +115,20 @@ namespace Zählbot
             ret.Active = true;
 
             ret.PlayerList = GetPlayerList(post.Postcontent);
-            ret.BiDaily = GetBiDaily(post.Postcontent);
+            ret.HoursPerDay = GetHoursPerDay(post.Postcontent);
             ret.WithHD = GetWithHD(post.Postcontent);
 
             return ret;
         }
 
-        //TODO
         public bool ScanThread(ref Game game)
         {
+            bool ret = false;
             var lastpost = game.LastPostNumber();
             HtmlDocument source = web.Load(String.Concat(consthreadlink, game.ThreadId.ToString(), conspagediv, game.ActivePage().ToString()));
             List<ConstructPost> postList = GetNodesByClass(source.DocumentNode, consclassmessage).Where(x => x.Name == consclassarticle).Select(x => GetPostDataFromNode(x)).Where(x => x.PostNumber > lastpost).ToList();
 
-            if (postList.Count() == 0)
-            {
-                return false;
-            }
-            else
+            if (postList.Count() != 0)
             {
                 foreach (var post in postList)
                 {
@@ -99,14 +142,14 @@ namespace Zählbot
                         {
                             post.Voted = voted;
                             game.AddVote(post);
+                            ret = true;
                         }
                     }
                     game.CurrentDay().LastPostNumber = post.PostNumber;
-                    //post.Postcontent = null;
-                    //game.CurrentDay().Posts.Add(post);
                 }
-                return (ScanThread(ref game) | true);
+                return ret | (ScanThread(ref game));
             }
+            return ret;
         }
 
         private ConstructPost GetPostDataFromNode(HtmlNode node)
@@ -125,13 +168,29 @@ namespace Zählbot
             return ret;
         }
 
+        //TODO
         private void AnalyzeSLPost(ConstructPost post, ref Game game)
         {
             if (post.Postcontent.DocumentNode.InnerText.Contains("Nachtpost"))
             {
                 var current = game.CurrentDay();
-                GameDay gameday = new GameDay() { Day = current.Day + 1, End = current.End.AddDays(1), Start = post.Time };
+                GameDay gameday = new GameDay() { Day = current.Day + 1, End = current.End.AddHours(game.HoursPerDay), Start = post.Time };
                 game.Days.Add(gameday);
+            }
+            var list = String.Join("|", game.PlayerList.Where(x => x.Alive).Select(x => ReplaceSymbols(x.Name)));
+            Regex reg = new Regex($@"(?<player>{list})?\s*(wird|ist)(\s*neuer)?\s*(Hauptmann|HD)", RegexOptions.IgnoreCase);
+            var match = reg.Match(post.Postcontent.DocumentNode.InnerText);
+
+            if (match.Success)
+            {
+                if (match.Groups["player"].Success)
+                {
+                    game.HD = game.PlayerList.Where(x => x.Name.Equals(match.Groups["player"].Value, StringComparison.InvariantCultureIgnoreCase)).First();
+                }
+                else
+                {
+                    errorList.Add(new Error(conserrorHD, post.Author, post.PostId));
+                }
             }
         }
 
@@ -147,18 +206,24 @@ namespace Zählbot
             }
         }
 
+        private string ReplaceSymbols(string input)
+        {
+            string ret = input.Replace(" ", @"\s");
+            return ret;
+        }
+
         private bool GetVote(ConstructPost post, List<Player> playerlist, string votetoken, out Player voted)
         {
             voted = null;
             
-            var list = String.Join("|", playerlist.Where(x => x.Alive).Select(x => x.Name.Replace(" ", @"\s")));
-            Regex reg = new Regex(String.Concat(votetoken, "(?<player>", list , ")?"), RegexOptions.RightToLeft);
+            var list = String.Join("|", playerlist.Where(x => x.Alive).Select(x => x.Name));
+            Regex reg = new Regex(String.Concat(votetoken, "(?<player>", list, ")?"), RegexOptions.RightToLeft | RegexOptions.IgnoreCase);
             var match = reg.Match(post.Postcontent.DocumentNode.InnerHtml);
             if (match.Success)
             {
                 if (match.Groups["player"].Success)
                 {
-                    voted = playerlist.Where(x => x.Name == match.Groups["player"].Value).First();
+                    voted = playerlist.Where(x => x.Name.Equals(match.Groups["player"].Value, StringComparison.InvariantCultureIgnoreCase)).First();
                     return true;
                 }
                 else
@@ -215,9 +280,9 @@ namespace Zählbot
         }
 
         //TODO
-        private bool GetBiDaily(HtmlDocument content)
+        private int GetHoursPerDay(HtmlDocument content)
         {
-            return false;
+            return 24;
         }
 
         //TODO
@@ -245,7 +310,7 @@ namespace Zählbot
             {
                 return string.Empty;
             }
-            return RemoveWhitespace(node.FirstChild.InnerText);
+            return node.FirstChild.InnerText.Trim();
         }
 
         private void CacheAllUsers()

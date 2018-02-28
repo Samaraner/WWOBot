@@ -45,12 +45,14 @@ namespace Zählbot
             internal Player Voting { get; set; }
             internal Player Voted { get; set; }
             internal int Postid { get; set; }
+            internal DateTime Time { get; set; }
 
-            internal Vote(Player voting, Player voted, int postid)
+            internal Vote(Player voting, Player voted, int postid, DateTime time)
             {
                 this.Voting = voting;
                 this.Voted = voted;
                 this.Postid = postid;
+                this.Time = time;
             }
         }
 
@@ -59,10 +61,11 @@ namespace Zählbot
             //internal int GameNumber { get; set; }
             internal int ThreadId { get; set; }
             internal bool WithHD { get; set; }
-            internal bool BiDaily { get; set; }
+            internal int HoursPerDay { get; set; } = 24;
             internal bool Active { get; set; }
             internal List<Player> PlayerList { get; set; }
             internal Player HD { get; set; }
+            internal int HDStimmen { get; set; } = 2;
             internal Player SL { get; set; }
             internal List<GameDay> Days { get; set; } = new List<GameDay>();
 
@@ -84,7 +87,7 @@ namespace Zählbot
 
             internal void AddVote(Post post)
             {
-                this.CurrentDay().Votes.Add(new Vote(post.Author, post.Voted, post.PostId));
+                this.CurrentDay().Votes.Add(new Vote(post.Author, post.Voted, post.PostId, post.Time));
             }
         }
 

@@ -34,6 +34,7 @@ namespace Zählbot
         //errors
         public const string conserrorlynchtime = "Lynchzeit konnte nicht ausgelesen werden.";
         public const string conserrorvote = "Der Vote konnte nicht erkannt werden.";
+        public const string conserrorHD = "Konnte den (neuen) HD nicht auslesen";
 
         //other
         public const int PostsperPage = 20;
