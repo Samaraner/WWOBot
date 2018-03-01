@@ -8,6 +8,8 @@ using static Zählbot.Data;
 using static Zählbot.Constants;
 using System.Text.RegularExpressions;
 using System.Threading;
+using SHDocVw;
+using mshtml;
 
 namespace Zählbot
 {
@@ -16,7 +18,6 @@ namespace Zählbot
         HtmlWeb web = new HtmlWeb();
         Dictionary<int, string> playerNames = new Dictionary<int, string>();
         List<Error> errorList = new List<Error>();
-        //new InternetExplorer
 
         public void Start()
         {
@@ -33,14 +34,42 @@ namespace Zählbot
             Run(gameList);
         }
 
-        //TODO
+        //TODO: Verlauf hinzufügen
         private void PostStand(Game game)
         {
             string post = ConstructPost(game);
 
+
+
         }
 
-        //TODO
+        //TODO: Textwiederherstellung verneinen
+        private void SendPost(string input, string id)
+        {
+            InternetExplorer explorer = new InternetExplorer();
+            explorer.Visible = false;
+            explorer.Navigate($@"{consaddpostlink}{id}");
+            while (explorer.Busy)
+            {
+                Thread.Sleep(100);
+            }
+
+            HTMLDocument doc = (HTMLDocument)explorer.Document;
+            IHTMLElement textfield = doc.getElementById("wcf39");
+            IHTMLElementCollection templist = (IHTMLElementCollection)textfield.children;
+            IHTMLElement innerfield = templist.item(0, null);
+            innerfield.innerText = input;
+
+            IHTMLElement previewbutton = doc.getElementById("previewButton");
+            IHTMLElement parent = previewbutton.parentElement;
+            templist = (IHTMLElementCollection)parent.children;
+            IHTMLElement submitbutton = templist.item(0, null);
+
+            submitbutton.click();
+            explorer.Quit();
+
+        }
+
         private string ConstructPost(Game game)
         {
             string ret = string.Empty;
@@ -100,6 +129,8 @@ namespace Zählbot
             return ret;
         }
 
+        //TODO: Unterschiedliche Zeiten für HD Wahlen erkennen
+        //      +Unterfunktionen
         public Game SetupGame(int id)
         {
             HtmlDocument source = web.Load(String.Concat(consthreadlink, id.ToString()));
@@ -168,7 +199,7 @@ namespace Zählbot
             return ret;
         }
 
-        //TODO
+        //TODO: Mehr Schlüsselwörter erkennen
         private void AnalyzeSLPost(ConstructPost post, ref Game game)
         {
             if (post.Postcontent.DocumentNode.InnerText.Contains("Nachtpost"))
@@ -177,6 +208,8 @@ namespace Zählbot
                 GameDay gameday = new GameDay() { Day = current.Day + 1, End = current.End.AddHours(game.HoursPerDay), Start = post.Time };
                 game.Days.Add(gameday);
             }
+
+
             var list = String.Join("|", game.PlayerList.Where(x => x.Alive).Select(x => ReplaceSymbols(x.Name)));
             Regex reg = new Regex($@"(?<player>{list})?\s*(wird|ist)(\s*neuer)?\s*(Hauptmann|HD)", RegexOptions.IgnoreCase);
             var match = reg.Match(post.Postcontent.DocumentNode.InnerText);
@@ -206,9 +239,10 @@ namespace Zählbot
             }
         }
 
+        //TODO: Mehr Chars auskommentieren
         private string ReplaceSymbols(string input)
         {
-            string ret = input.Replace(" ", @"\s");
+            string ret = input.Replace(" ", @"\s").Replace(".",@"\.");
             return ret;
         }
 
@@ -270,7 +304,7 @@ namespace Zählbot
             return ret;
         }
 
-        //TODO
+        //TODO Spielerliste auslesen
         private List<Player> GetPlayerList(HtmlDocument content)
         {
             List<Player> ret = new List<Player>();
@@ -279,13 +313,13 @@ namespace Zählbot
             return ret;
         }
 
-        //TODO
+        //TODO 48 Stunden Spiele erkennen
         private int GetHoursPerDay(HtmlDocument content)
         {
             return 24;
         }
 
-        //TODO
+        //TODO HD Wahl erkennen
         private bool GetWithHD(HtmlDocument content)
         {
             return true;

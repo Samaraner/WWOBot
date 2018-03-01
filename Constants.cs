@@ -10,6 +10,7 @@ namespace Zählbot
     {
         //links
         public const string consthreadlink = "http://werwolf-online.com/index.php/Thread/";
+        public const string consaddpostlink = "http://werwolf-online.com/index.php/PostAdd/";
         public const string consuserlink = "http://werwolf-online.com/index.php/User/";
         public const string consgamesubforum = "http://werwolf-online.com/index.php/Board/10";
         public const string conspagediv = "/?pageNo=";
