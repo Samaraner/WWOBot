@@ -38,7 +38,7 @@ namespace Zählbot
         private void PostStand(Game game)
         {
             string post = ConstructPost(game);
-    
+            post += ConstructHistorie(game);
 
 
         }
