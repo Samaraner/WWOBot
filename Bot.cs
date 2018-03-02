@@ -38,7 +38,7 @@ namespace Zählbot
         private void PostStand(Game game)
         {
             string post = ConstructPost(game);
-
+    
 
 
         }
@@ -69,7 +69,20 @@ namespace Zählbot
             explorer.Quit();
 
         }
-
+        
+        private string ConstructHistorie(Game game)
+        {
+            string ret = "[b]Verlauf:[/b]";
+            game.CurrentDay().Votes.ForEach(x => ret += GetSingleHistoryElement(x))
+            return ret;
+            
+            string GetSingleHistoryElement(Vote input)
+            {
+                return $@"[url='{conspostlink}{input.Postid}']{input.Voting} stimmt auf {input.Voted}[/url]";
+            }
+        }
+        
+        
         private string ConstructPost(Game game)
         {
             string ret = string.Empty;
