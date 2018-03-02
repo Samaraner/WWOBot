@@ -17,6 +17,7 @@ namespace Zählbot
     {
         HtmlWeb web = new HtmlWeb();
         Dictionary<int, string> playerNames = new Dictionary<int, string>();
+        //TODO: threadid hinzufügen
         List<Error> errorList = new List<Error>();
 
         public void Start()
@@ -29,16 +30,17 @@ namespace Zählbot
 
         public void Run(List<Game> gameList)
         {
-            gameList.Where(x => x.Active && ScanThread(ref x)).ToList().ForEach(x => PostStand(x));
+            gameList.Where(x => x.Active && ScanThread(ref x)).ToList().ForEach(x => ConstructPost(x));
             Thread.Sleep(10000);
             Run(gameList);
         }
 
-        //TODO: Verlauf hinzufügen
-        private void PostStand(Game game)
+        //TODO: Eigene Klasse für Requests
+        private void ConstructPost(Game game)
         {
-            string post = ConstructPost(game);
-            post += ConstructHistorie(game);
+            string post = ConstructStand(game);
+            post += Environment.NewLine + Environment.NewLine + ConstructHistorie(game);
+            post += Environment.NewLine + Environment.NewLine + ConstructErrors(game.ThreadId);
 
 
         }
@@ -69,21 +71,8 @@ namespace Zählbot
             explorer.Quit();
 
         }
-        
-        private string ConstructHistorie(Game game)
-        {
-            string ret = "[b]Verlauf:[/b]";
-            game.CurrentDay().Votes.ForEach(x => ret += GetSingleHistoryElement(x))
-            return ret;
-            
-            string GetSingleHistoryElement(Vote input)
-            {
-                return $@"[url='{consthreadlink}{game.ThreadId}/postID={input.Postid}#post{input.Postid}']{input.Voting} stimmt auf {input.Voted}[/url]";
-            }
-        }
-        
-        
-        private string ConstructPost(Game game)
+
+        private string ConstructStand(Game game)
         {
             string ret = string.Empty;
 
@@ -124,6 +113,25 @@ namespace Zählbot
             }
         }
 
+        private string ConstructHistorie(Game game)
+        {
+            string ret = "[b]Verlauf:[/b]";
+            game.CurrentDay().Votes.ForEach(x => ret += GetSingleHistoryElement(x));
+            return ret;
+
+            string GetSingleHistoryElement(Vote input)
+            {
+                return $@"[url='{consthreadlink}{game.ThreadId}/postID={input.Postid}#post{input.Postid}']{input.Voting} stimmt auf {input.Voted}[/url]";
+            }
+        }
+
+        //TODO
+        private string ConstructErrors(int gameid)
+        {
+
+            return string.Empty;
+        }
+
         List<Vote> GetOnlyCurrentVotes(List<Vote> votes)
         {
             return votes.Select(x => votes.Where(y => y.Voting == x.Voting).Last()).Distinct().ToList();
@@ -158,7 +166,7 @@ namespace Zählbot
             ret.Days.Add(gameday);
             ret.Active = true;
 
-            ret.PlayerList = GetPlayerList(post.Postcontent);
+            ret.PlayerList = GetPlayerList(post.Postcontent, post.Author, post.PostNumber);
             ret.HoursPerDay = GetHoursPerDay(post.Postcontent);
             ret.WithHD = GetWithHD(post.Postcontent);
 
@@ -221,7 +229,6 @@ namespace Zählbot
                 GameDay gameday = new GameDay() { Day = current.Day + 1, End = current.End.AddHours(game.HoursPerDay), Start = post.Time };
                 game.Days.Add(gameday);
             }
-
 
             var list = String.Join("|", game.PlayerList.Where(x => x.Alive).Select(x => ReplaceSymbols(x.Name)));
             Regex reg = new Regex($@"(?<player>{list})?\s*(wird|ist)(\s*neuer)?\s*(Hauptmann|HD)", RegexOptions.IgnoreCase);
@@ -317,12 +324,27 @@ namespace Zählbot
             return ret;
         }
 
-        //TODO Spielerliste auslesen
-        private List<Player> GetPlayerList(HtmlDocument content)
+        //TODO Spielererkennung verbessern
+        private List<Player> GetPlayerList(HtmlDocument content, Player author, int postnumber)
         {
             List<Player> ret = new List<Player>();
-            playerNames.ToList().ForEach(x => ret.Add(new Player() { PlayerId = x.Key, Alive = true, Name = x.Value }));
 
+            Regex reg = new Regex($@"Spielerliste:.*?(Warteliste)?", RegexOptions.IgnoreCase | RegexOptions.Singleline );
+            var match = reg.Match(content.DocumentNode.InnerHtml);
+            if (match.Success)
+            {
+                foreach (var item in playerNames)
+                {
+                    if (match.Value.Contains(item.Value))
+                    {
+                        ret.Add(new Player() { PlayerId = item.Key, Alive = true, Name = item.Value });
+                    }
+                }
+            }
+            else
+            {
+                errorList.Add(new Error(conserrorplayerlist, author, postnumber));
+            }
             return ret;
         }
 
@@ -362,22 +384,24 @@ namespace Zählbot
 
         private void CacheAllUsers()
         {
-            int nomatch = 0;
-            int id = 1;
-
-            while (nomatch < 10)
+            HtmlDocument source = web.Load(consuserlistlink);
+            var nodecount = GetNodesByClass(source.DocumentNode, consclassusercount).First();
+            int count = Int32.Parse(nodecount.ChildNodes[1].ChildNodes[1].InnerText);
+            for (int i = 1; i < ((count - 1) / 30 +1); i++)
             {
-                string name = GetNewUserName(id);
-                if (name != string.Empty)
-                {
-                    playerNames.Add(id, name);
-                    nomatch = 0;
-                }
-                else
-                {
-                    nomatch++;
-                }
-                id++;
+                ScanMemberListPage(i);
+            }
+        }
+
+        private void ScanMemberListPage(int page)
+        {
+            HtmlDocument source = web.Load($"{consuserlistlink}{conspagediv}{page}");
+            var nodes = GetNodesByClass(source.DocumentNode,consclassuserbox);
+            foreach (var node in nodes)
+            {
+                string name = GetAttributeFromNode(node.ChildNodes[1],consattrtitle);
+                int id = GetAttributeIntFromNode(node.ParentNode, consattrobjectid);
+                playerNames.Add(id, name);
             }
         }
 
