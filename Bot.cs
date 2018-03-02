@@ -78,7 +78,7 @@ namespace Zählbot
             
             string GetSingleHistoryElement(Vote input)
             {
-                return $@"[url='{conspostlink}{input.Postid}']{input.Voting} stimmt auf {input.Voted}[/url]";
+                return $@"[url='{consthreadlink}{game.ThreadId}/postID={input.Postid}#post{input.Postid}']{input.Voting} stimmt auf {input.Voted}[/url]";
             }
         }
         
