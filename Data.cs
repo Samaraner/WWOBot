@@ -54,11 +54,22 @@ namespace Zählbot
                 this.Postid = postid;
                 this.Time = time;
             }
+
+            internal void Replace(Player replacing, Player replaced)
+            {
+                if (this.Voted.PlayerId == replaced.PlayerId)
+                {
+                    this.Voted = replacing;
+                }
+                if (this.Voting.PlayerId == replaced.PlayerId)
+                {
+                    this.Voting = replacing;
+                }
+            }
         }
 
         internal class Game
         {
-            //internal int GameNumber { get; set; }
             internal int ThreadId { get; set; }
             internal bool WithHD { get; set; }
             internal int HoursPerDay { get; set; } = 24;
@@ -89,19 +100,55 @@ namespace Zählbot
             {
                 this.CurrentDay().Votes.Add(new Vote(post.Author, post.Voted, post.PostId, post.Time));
             }
+
+            internal string GetVoteToken()
+            {
+                if (this.WithHD && this.CurrentDay().Day == 1)
+                {
+                    return Constants.consregexvotehd;
+                }
+                else
+                {
+                    return Constants.consregexvotelynch;
+                }
+            }
+
+            internal void ReplacePlayer(Player replaced, Player replacing)
+            {
+                this.PlayerList = this.PlayerList.Where(x => x.PlayerId != replaced.PlayerId).ToList();
+                this.PlayerList.Add(replacing);
+                this.Days.ForEach(x => x.Votes.ForEach(y => y.Replace(replacing, replaced)));
+                if (this.HD.PlayerId == replacing.PlayerId)
+                {
+                    this.HD = replacing;
+                }
+            }
         }
 
         internal class Error
         {
-            string Message { get; set; }
-            Player Author { get; set; }
-            int Postid { get; set; }
+            internal string Message { get; set; }
+            internal Player Author { get; set; }
+            internal int Postid { get; set; }
 
             internal Error(string message, Player author, int postid)
             {
                 this.Message = message;
                 this.Author = author;
                 this.Postid = postid;
+            }
+        }
+
+        internal class Request
+        {
+            internal int Day { get; set; }
+            internal Player Focus { get; set; }
+            internal bool System { get; set; }
+
+            internal Request(int day, bool system)
+            {
+                this.Day = day;
+                this.System = system;
             }
         }
     }
