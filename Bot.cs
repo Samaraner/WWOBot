@@ -41,9 +41,10 @@ namespace Zählbot
                 var post = ConstructPost(game, req);
                 SendPost(post, game.ThreadId.ToString());
             }
+            errorList = new List<Error>();
         }
 
-        //TODO: Eigene Klasse für Requests
+        //TODO: Requests verwenden
         private string ConstructPost(Game game, List<Request> req)
         {
             string ret = string.Empty;
@@ -168,12 +169,12 @@ namespace Zählbot
             GameDay gameday = new GameDay() {Day = 1};
             gameday.LastPostNumber = post.PostNumber;
             gameday.Start = post.Time;
-            gameday.End = GetLynchTime(post.Postcontent, post.Author, post.PostId, post.Time).AddDays(1);
+            gameday.End = GetLynchTime(post.Postcontent, post.Author, post.PostId, post.Time, id).AddDays(1);
 
             ret.Days.Add(gameday);
             ret.Active = true;
 
-            ret.PlayerList = GetPlayerList(post.Postcontent, post.Author, post.PostNumber);
+            ret.PlayerList = GetPlayerList(post.Postcontent, post.Author, post.PostNumber, id);
             ret.HoursPerDay = GetHoursPerDay(post.Postcontent);
             ret.WithHD = GetWithHD(post.Postcontent);
 
@@ -197,7 +198,7 @@ namespace Zählbot
                     }
                     else
                     {
-                        if (post.Time < game.CurrentDay().End && TryGetVote(post, game.PlayerList, game.GetVoteToken(), out Player voted))
+                        if (post.Time < game.CurrentDay().End && TryGetVote(post, game.PlayerList, game.GetVoteToken(), game.ThreadId, out Player voted))
                         {
                             post.Voted = voted;
                             game.AddVote(post);
@@ -250,7 +251,7 @@ namespace Zählbot
                 }
                 else
                 {
-                    errorList.Add(new Error(conserrorHD, post.Author, post.PostId));
+                    errorList.Add(new Error(conserrorHD, post.Author, post.PostId, game.ThreadId));
                 }
             }
         }
@@ -274,7 +275,7 @@ namespace Zählbot
             return ret;
         }
 
-        private bool TryGetVote(ConstructPost post, List<Player> playerlist, string votetoken, out Player voted)
+        private bool TryGetVote(ConstructPost post, List<Player> playerlist, string votetoken, int gameID, out Player voted)
         {
             voted = null;
             
@@ -290,13 +291,13 @@ namespace Zählbot
                 }
                 else
                 {
-                    errorList.Add(new Error(conserrorvote, post.Author, post.PostId));
+                    errorList.Add(new Error(conserrorvote, post.Author, post.PostId, gameID));
                 }
             }
             return false;
         }
 
-        private DateTime GetLynchTime(HtmlDocument content, Player author, int postid, DateTime date)
+        private DateTime GetLynchTime(HtmlDocument content, Player author, int postid, DateTime date, int gameID)
         {
             DateTime ret = new DateTime();
             Regex reg = new Regex(consregexlynchtime);
@@ -314,14 +315,14 @@ namespace Zählbot
             }
             else
             {
-                errorList.Add(new Error(conserrorlynchtime, author, postid));
+                errorList.Add(new Error(conserrorlynchtime, author, postid, gameID));
             }
 
             return ret;
         }
 
         //TODO Spielererkennung verbessern
-        private List<Player> GetPlayerList(HtmlDocument content, Player author, int postnumber)
+        private List<Player> GetPlayerList(HtmlDocument content, Player author, int postnumber, int gameID)
         {
             List<Player> ret = new List<Player>();
 
@@ -339,7 +340,7 @@ namespace Zählbot
             }
             else
             {
-                errorList.Add(new Error(conserrorplayerlist, author, postnumber));
+                errorList.Add(new Error(conserrorplayerlist, author, postnumber, gameID));
             }
             return ret;
         }
