@@ -238,9 +238,23 @@ namespace Zählbot
                 game.Days.Add(gameday);
             }
 
-            var list = String.Join("|", game.PlayerList.Where(x => x.Alive).Select(x => ReplaceSymbols(x.Name)));
-            Regex reg = new Regex($@"(?<player>{list})?\s*(wird|ist)(\s*neuer)?\s*(Hauptmann|HD)", RegexOptions.IgnoreCase);
-            var match = reg.Match(post.Postcontent.DocumentNode.InnerText);
+            var plist = String.Join("|", game.PlayerList.Where(x => x.Alive).Select(x => ReplaceSymbols(x.Name)));
+            var alist = String.Join("|", playerNames.Select(x => ReplaceSymbols(x.Value)));
+
+            Regex regrep = new Regex($@"!replace (?<player1>{plist})?\s*(?<player2>{alist})?" , RegexOptions.IgnoreCase);
+            var match = regrep.Match(post.Postcontent.DocumentNode.InnerText);
+
+            if (match.Success)
+            {
+                if (match.Groups["player1"].Success)
+                {
+
+                }
+            }
+
+            
+            Regex reg = new Regex($@"(?<player>{plist})?\s*(wird|ist)(\s*neuer)?\s*(Hauptmann|HD)", RegexOptions.IgnoreCase);
+            match = reg.Match(post.Postcontent.DocumentNode.InnerText);
 
             if (match.Success)
             {
@@ -325,7 +339,7 @@ namespace Zählbot
         {
             List<Player> ret = new List<Player>();
 
-            Regex reg = new Regex($@"Spielerliste:(.*?Warteliste|.*)", RegexOptions.IgnoreCase | RegexOptions.Singleline );
+            Regex reg = new Regex(consregexplayerlist, RegexOptions.IgnoreCase | RegexOptions.Singleline );
             var match = reg.Match(content.DocumentNode.InnerHtml);
             if (match.Success)
             {
@@ -353,7 +367,7 @@ namespace Zählbot
         //TODO HD Wahl erkennen
         private bool GetWithHD(HtmlDocument content)
         {
-            Regex reg = new Regex(@"(Kein|Ohne) (HD|Hauptmann)");
+            Regex reg = new Regex(consregexnohd);
             if (reg.IsMatch(content.DocumentNode.InnerText))
             {
                 return false;
@@ -361,7 +375,6 @@ namespace Zählbot
             return true;
         }
 
-        //TODO
         private void ReplacePlayer(ref Game game, Player replaced, Player replacing)
         {
             game.ReplacePlayer(replaced, replacing);
@@ -378,6 +391,7 @@ namespace Zählbot
             }
             return ret;
         }
+
 
         private string GetNewUserName(int id)
         {

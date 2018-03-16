@@ -36,6 +36,8 @@ namespace Zählbot
         public const string consregexvotehd = @"alt="":!:""\s*>\s*";
         public const string consregexvotelynch = @"alt="":arrow:""\s*>\s*";
         public const string consregexlynchtime = @"Lynchung:(.*\d{1,2}\.\d{1,2}.*?)?\s*(?<hour>\d{1,2})(:(?<min>\d{0,2})|\s*Uhr)";
+        public const string consregexnohd = @"(Kein|Ohne) (HD|Hauptmann)";
+        public const string consregexplayerlist = @"Spielerliste:(.*?Warteliste|.*)";
 
         //errors
         public const string conserrorlynchtime = "Lynchzeit konnte nicht ausgelesen werden.";
