@@ -130,12 +130,14 @@ namespace Zählbot
             internal string Message { get; set; }
             internal Player Author { get; set; }
             internal int Postid { get; set; }
+            internal int ThreadId {get; set; }
 
-            internal Error(string message, Player author, int postid)
+            internal Error(string message, Player author, int postid, int threadid)
             {
                 this.Message = message;
                 this.Author = author;
                 this.Postid = postid;
+                this.ThreadId = threadid;
             }
         }
 
