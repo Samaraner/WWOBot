@@ -17,7 +17,6 @@ namespace Zählbot
     {
         HtmlWeb web = new HtmlWeb();
         Dictionary<int, string> playerNames = new Dictionary<int, string>();
-        //TODO: threadid hinzufügen
         List<Error> errorList = new List<Error>();
 
         public void Start()
